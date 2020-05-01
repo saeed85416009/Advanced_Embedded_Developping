@@ -1,17 +1,37 @@
-#include <my_process.h>
 
+
+#include "my_process.h"
 // shared data
 static sem_t *demo_sem;
 //
 
+// thread
+pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
+pthread_mutex_t mutx = PTHREAD_MUTEX_INITIALIZER;
+char *data;
+extern uint32_t global_data_1;
+
+//
+//simple thread
+
+static void* thread_fn(void *arg) {
+	printf("New thread started, PID %d TID %d\n", getpid(),
+			(pid_t) syscall(SYS_gettid));
+	sleep(10);
+	printf("New thread terminating\n");
+	return NULL;
+}
+//
 int main_simple_process(int argc, char *argv[]) {
 
 	int pid;
 	int status;
 	pid = fork();
 	if (pid == 0) {
+		while(1){
 		printf("I am the child, PID %d\n", getpid());
-		sleep(10);
+		sleep(100);
+		}
 		exit(42);
 	} else if (pid > 0) {
 		printf("I am the parent, PID %d\n", getpid());
@@ -64,7 +84,6 @@ int main_simple_process_execution(int argc, char *argv[]) {
  *
  *  */
 
-
 /*
  * If the shared memory segment does not exist already, create it
  * Returns a pointer to the segment or NULL if there is an error
@@ -99,7 +118,8 @@ static void* get_shared_memory(void) {
 		exit(1);
 	}
 	/* Map the shared memory */
-	shm_p = mmap(NULL, SHM_SEGMENT_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+	shm_p = mmap(NULL, SHM_SEGMENT_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED,
+			shm_fd, 0);
 	if (shm_p == NULL) {
 		perror("mmap");
 		exit(1);
@@ -111,13 +131,13 @@ int main_process_shared_data(int argc, char *argv[]) {
 	printf("%s PID=%d\n", argv[0], getpid());
 	shm_p = get_shared_memory();
 //	while (1) {
-		printf("Press enter to see the current contents of shm\n");
-		getchar();
-		sem_wait(demo_sem);
-		printf("%s\n", shm_p);
-		/* Write our signature to the shared memory */
-		sprintf(shm_p, "Hello from process %d\n", getpid());
-		sem_post(demo_sem);
+	printf("Press enter to see the current contents of shm\n");
+	getchar();
+	sem_wait(demo_sem);
+	printf("%s\n", shm_p);
+	/* Write our signature to the shared memory */
+	sprintf(shm_p, "Hello from process %d\n", getpid());
+	sem_post(demo_sem);
 //	}
 	return 0;
 }
@@ -127,13 +147,102 @@ int main_process_shared_data_2(int argc, char *argv[]) {
 	printf("%s PID=%d\n", argv[0], getpid());
 	shm_p = get_shared_memory();
 //	while (1) {
-		printf("2: Press enter to see the current contents of shm\n");
-		getchar();
-		sem_wait(demo_sem);
-		printf("%s\n", shm_p);
-		/* Write our signature to the shared memory */
-		sprintf(shm_p, "2: Hello from process %d\n", getpid());
-		sem_post(demo_sem);
+	printf("2: Press enter to see the current contents of shm\n");
+	getchar();
+	sem_wait(demo_sem);
+	printf("%s\n", shm_p);
+	/* Write our signature to the shared memory */
+	sprintf(shm_p, "2: Hello from process %d\n", getpid());
+	sem_post(demo_sem);
 //	}
 	return 0;
 }
+
+/*  thread */
+int main_simple_thread(int argc, char *argv[]) {
+	pthread_t t;
+	printf("Main thread, PID %d TID %d\n", getpid(),
+			(pid_t) syscall(SYS_gettid));
+	pthread_create(&t, NULL, thread_fn, NULL);
+	pthread_join(t, NULL);
+	return 0;
+}
+
+void* my_func_th_1(void* arg){
+	while(1){
+	printf("thread1: global_data_1=%d\n\n", global_data_1);
+
+	int *in=malloc(sizeof(*in)*3);
+	in = (int *) arg;
+	in[0]=black;
+	struct struct_output_thread *st_thr = malloc(sizeof(*st_thr));
+	st_thr->out_string="color";
+	st_thr->out_int=in[0];
+	pthread_exit(st_thr);
+
+	}
+
+}
+
+
+
+
+void* my_func_th_2(void* arg){
+	while(1){
+	global_data_1++;
+	printf("thread2: global_data_1=%d\n\n", global_data_1);
+	sleep(1);
+	}
+
+}
+
+int main_advanced_thread(int argc, char *argv[]) {
+	pthread_t t1;
+	pthread_t t2;
+	pthread_attr_t attr;
+	struct struct_output_thread *st_thr = malloc(sizeof(*st_thr));
+	pthread_attr_init(&attr);
+	char *input=malloc(sizeof(*input)*3);
+	input[1]=(char*)"color";
+	input[2]=(char*)"model";
+	input[3]=(char*)"price";
+
+	printf("Main thread, PID %d TID %d\n", getpid(),(pid_t) syscall(SYS_gettid));
+	pthread_create(&t1, NULL, my_func_th_1, input);
+	free(input);
+	pthread_create(&t2, NULL, my_func_th_2, NULL);
+
+	pthread_join(t1, (void **) &st_thr);
+//	pthread_join(t2, NULL);
+
+	printf("the output of first thread is  string = %s  integer = %d \n", st_thr->out_string, st_thr->out_int);
+
+
+
+	return 0;
+}
+
+
+//void* consumer(void *arg) {
+//	while (1) {
+//		pthread_mutex_lock(&mutx);
+//		while (buffer_empty(data))
+//			pthread_cond_wait(&cv, &mutx);
+//		/* Got data: take from buffer */
+//		pthread_mutex_unlock(&mutx);
+//		/* Process data item */
+//	}
+//	return NULL;
+//}
+//
+//void* producer(void *arg) {
+//	while (1) {
+//		/* Produce an item of data */
+//		pthread_mutex_lock(&mutx);
+//		add_data(data);
+//		pthread_mutex_unlock(&mutx);
+//		pthread_cond_signal(&cv);
+//	}
+//	return NULL;
+//}
+

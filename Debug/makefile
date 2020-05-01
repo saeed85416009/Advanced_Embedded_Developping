@@ -30,7 +30,7 @@ all: Advanced-Embedded
 Advanced-Embedded: $(OBJS) $(USER_OBJS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: Cross GCC Linker'
-	arm-linux-gnueabihf-gcc -pthread  -o "Advanced-Embedded" $(OBJS) $(USER_OBJS) $(LIBS)
+	arm-linux-gnueabihf-gcc -pthread -g -Wall -Werror  -o "Advanced-Embedded" $(OBJS) $(USER_OBJS) $(LIBS)
 	@echo 'Finished building target: $@'
 	@echo ' '
 
