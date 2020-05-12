@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 					return -1;
 				}
 			}
-	if (strcmp(argv[1], "socket") == 0) {
+	if (strcmp(argv[1], "linked") == 0) {
 				if (main_linkedList(argc, argv)) {
 					printf("error in internal led program....\n\n");
 					return -1;
